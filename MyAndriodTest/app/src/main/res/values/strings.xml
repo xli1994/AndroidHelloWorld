@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">MyAndriodTest</string>
+
+    <string name="textview">Hello world! Xiaosong Li</string>
+    <string name="action_settings">Settings</string>
+
+    <!--XLi -->
+    <string name="button">Update The TextView</string>
+    <string name="hint">A Name</string>
+</resources>

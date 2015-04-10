@@ -1,6 +1,7 @@
 package com.lxs.myandriodtest;
 
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -13,13 +14,19 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.JsonHttpResponseHandler;
+
+import org.json.JSONObject;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 
 
@@ -30,7 +37,13 @@ public class MainActivityLxs extends ActionBarActivity implements View.OnClickLi
     EditText mainEditText;
 
     ListView mainListView;
-    ArrayAdapter mArrayAdapter;
+    //ArrayAdapter mArrayAdapter;
+
+    //for query book
+    JSONAdapter mJSONAdapter;
+    //show progress when searching bok
+    ProgressDialog mDialog;
+
     ArrayList mNameList = new ArrayList();
 
     ShareActionProvider mShareActionProvider;
@@ -40,6 +53,9 @@ public class MainActivityLxs extends ActionBarActivity implements View.OnClickLi
     private static final String PREF_NAME = "name";
     SharedPreferences mSharedPreferences;
 
+    //query to a site
+    private static final String QUERY_URL = "http://openlibrary.org/search.json?q=";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,7 +64,7 @@ public class MainActivityLxs extends ActionBarActivity implements View.OnClickLi
         // 1. Access the TextView defined in layout XML
         // and then set its text
         mainTextView = (TextView) findViewById(R.id.main_textview);
-        mainTextView.setText("Set in Java!");
+        //mainTextView.setText("Set in Java!");
 
         // 2. Access the Button defined in layout XML
         // and listen for it here
@@ -62,18 +78,31 @@ public class MainActivityLxs extends ActionBarActivity implements View.OnClickLi
         mainListView = (ListView) findViewById(R.id.main_listview);
 
         // Create an ArrayAdapter for the ListView
+        /* remove it for query book
         mArrayAdapter = new ArrayAdapter(this,
                 android.R.layout.simple_list_item_1,
                 mNameList);
 
         // Set the ListView to use the ArrayAdapter
         mainListView.setAdapter(mArrayAdapter);
+        */
 
         // 5. Set this activity to react to list items being pressed
         mainListView.setOnItemClickListener(this);
 
         // 7. Greet the user, or ask for their name if new
         displayWelcome();
+
+        // 10. Create a JSONAdapter for the ListView
+        mJSONAdapter = new JSONAdapter(this, getLayoutInflater());
+
+        //initialize progress bar
+        mDialog = new ProgressDialog(this);
+        mDialog.setMessage("Searching for Book");
+        mDialog.setCancelable(false);
+
+        // Set the ListView to use the ArrayAdapter
+        mainListView.setAdapter(mJSONAdapter);
     }
 
 
@@ -119,6 +148,7 @@ public class MainActivityLxs extends ActionBarActivity implements View.OnClickLi
     public void onClick(View v) {
         // Take what was typed into the EditText
         // and use in TextView
+        /*
         mainTextView.setText(mainEditText.getText().toString()
                 + " is learning Android development!");
 
@@ -129,14 +159,29 @@ public class MainActivityLxs extends ActionBarActivity implements View.OnClickLi
         // 6. The text you'd like to share has changed,
         // and you need to update
         setShareIntent();
+        */
+
+        // 9. Take what was typed into the EditText and use in search
+        queryBooks(mainEditText.getText().toString());
     }
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        // Log the item's position and contents
-        // to the console in Debug
-        Log.d("omg android", position + ": " + mNameList.get(position));
+        // 12. Now that the user's chosen a book, grab the cover data
+        JSONObject jsonObject = (JSONObject) mJSONAdapter.getItem(position);
+        String coverID = jsonObject.optString("cover_i","");
 
+        // create an Intent to take you over to a new DetailActivity
+        Intent detailIntent = new Intent(this, DetailActivity.class);
+
+        // pack away the data about the cover
+        // into your Intent before you head out
+        detailIntent.putExtra("coverID", coverID);
+
+        // TODO: add any other data you'd like as Extras
+
+        // start the next Activity using your prepared Intent
+        startActivity(detailIntent);
     }
 
     public void displayWelcome() {
@@ -192,6 +237,64 @@ public class MainActivityLxs extends ActionBarActivity implements View.OnClickLi
             alert.show();
         }
     }
+
+    private void queryBooks(String searchString) {
+
+        // Prepare your search string to be put in a URL
+        // It might have reserved characters or something
+        String urlString = "";
+        try {
+            urlString = URLEncoder.encode(searchString, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+
+            // if this fails for some reason, let the user know why
+            e.printStackTrace();
+            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+
+        // Create a client to perform networking
+        AsyncHttpClient client = new AsyncHttpClient();
+
+        // Show ProgressDialog to inform user that a task in the background is occurring
+        mDialog.show();
+
+        // Have the client get a JSONArray of data
+        // and define how to respond
+        client.get(QUERY_URL + urlString,
+                new JsonHttpResponseHandler() {
+
+                    @Override
+                    public void onSuccess(JSONObject jsonObject) {
+                        // 11. Dismiss the ProgressDialog
+                        mDialog.dismiss();
+                        // Display a "Toast" message
+                        // to announce your success
+                        Toast.makeText(getApplicationContext(), "Success!", Toast.LENGTH_LONG).show();
+
+                        // 8. For now, just log results
+                        Log.d("omg android", jsonObject.toString());
+
+                        // update the data in your custom method.
+                        mJSONAdapter.updateData(jsonObject.optJSONArray("docs"));
+                    }
+
+                    @Override
+                    public void onFailure(int statusCode, Throwable throwable, JSONObject error) {
+                        // 11. Dismiss the ProgressDialog
+                        mDialog.dismiss();
+
+                        // Display a "Toast" message
+                        // to announce the failure
+                        Toast.makeText(getApplicationContext(), "Error: " + statusCode + " " +
+                                throwable.getMessage(), Toast.LENGTH_LONG).show();
+
+                        // Log error message
+                        // to help solve any problems
+                        Log.e("omg android", statusCode + " " + throwable.getMessage());
+                    }
+                });
+    }
+
     /* Li: remove it
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {

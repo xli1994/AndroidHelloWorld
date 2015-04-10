@@ -7,19 +7,33 @@
         android:targetSdkVersion="21"
         android:minSdkVersion="16" />
 
+    <!-- NEED TO ADD TO BE ABLE TO GO ONLINE AND GET DATA -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_books"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
             android:name=".MainActivityLxs"
-            android:label="@string/app_name" >
+            android:label="@string/app_name"
+            android:launchMode="singleTop">  <!--add lunchmode to support Up and Back Buttons, by setting the launchMode attribute to singleTop, you’re telling the manifest to use an already-existing instance of that Activity, if possible. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <!-- for book detail -->
+        <activity
+            android:name=".DetailActivity"
+            android:label="@string/activity_details"
+            android:parentActivityName=".MainActivityLxs">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".MainActivityLxs"/>
         </activity>
     </application>
 
